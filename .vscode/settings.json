@@ -1,0 +1,23 @@
+{
+    "editor.tabSize": 8,
+
+    // Insert spaces when pressing Tab.
+    "editor.insertSpaces": false,
+
+    // When opening a file, `editor.tabSize` and `editor.insertSpaces` will be detected based on the file contents.
+    "editor.detectIndentation": false,
+
+    "editor.rulers": [{
+	"column": 80,
+	"color": "#ff0000"
+      },
+      {
+	"column": 79,
+	"color": "#860000"
+      },
+      {
+	"column": 78,
+	"color": "#5a0000"
+      },
+    100]
+}
