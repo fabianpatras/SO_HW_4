@@ -19,5 +19,11 @@
 	"column": 78,
 	"color": "#5a0000"
       },
-    100]
+100
+],
+"files.associations": {
+	"scheduler_test.h": "c",
+	"so_scheduler.h": "c",
+	"run_test.h": "c"
+}
 }
