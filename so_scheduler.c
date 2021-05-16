@@ -48,26 +48,49 @@ int so_init(unsigned int time_quantum, unsigned int io)
 	return 0;
 }
 
+/* asta e o instructiune deci consuma o cunata de timp*/
 tid_t so_fork(so_handler *func, unsigned int priority)
 {
 	if (func == NULL || priority > SO_MAX_PRIO)
 		return INVALID_TID;
 
-	return INVALID_TID;
+	pthread_t new_thread;
+	pthread_create(&new_thread, NULL, func, &priority);
+
+
+
+	return new_thread;
 }
 
+/* asta e o instructiune deci consuma o cunata de timp*/
 int so_wait(unsigned int io)
 {
+	// asta e o instuctiune
 	return -1;
 }
 
+/* asta e o instructiune deci consuma o cunata de timp*/
 int so_signal(unsigned int io)
 {
 	return -1;
 }
 
+/* asta e o instructiune deci consuma o cunata de timp*/
 void so_exec(void)
 {
+	// aici se cosidera ca e executata instructiunea
+	// adica la un apel de so_exec se considera cu threadul curent a
+	// stat o cuanta de timp pe procesor
+
+	pthread_t self_id = pthread_self();
+	// contorizez ca thread[self_id] a mai executat o coanta de timp
+
+	int n = 1 << 12;
+	int i = 0;
+	int a = 0;
+	for (; i < n; i++) {
+		a++;
+	}
 	return;
 }
 
