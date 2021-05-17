@@ -19,7 +19,8 @@ typedef struct thread_struct {
 
 	/* the condition variable that will control the thread
 	 * it does so when we call pthread_cond_wait and pthread_cond_signal
-	 * on this varaible and the scheduler_instance TODO: mutex??
+	 * on this varaible and the scheduler_instance
+	 * TODO: mutex??
 	 */
 	pthread_cond_t cond_var;
 
@@ -40,7 +41,7 @@ typedef struct scheduler {
 	/* maximum I/O events allowed */
 	unsigned int io_events;
 
-	/* the id of the master thread == th	read that colled so_init */
+	/* the id of the master thread == thread that called so_init */
 	tid_t master_thread_id;
 
 	/* the id of the currently running thread */
@@ -78,6 +79,29 @@ static void scheduler_unlock()
 	pthread_mutex_unlock(&(scheduler_instance->scheduler_lock));
 }
 
+
+static void *start_function(void *arg)
+{
+	TPthread_arg args = *(TPthread_arg *)arg;
+
+	// arg is allocated just before calling this function:
+	// once we get here we have the copy of arg locally stored
+	free(arg);
+
+	/* TODO: some sort of signal to parent thread that we are ready to
+	 * run; parent thread waits until we get this far.
+	 */
+
+
+	/* TODO: some sort of lock because the thread will immediately reach
+	 * this point; here we wait (somehow) to te planned on CPU
+	 */
+
+
+	args.handler(args.priority);
+
+	pthread_exit(NULL);
+}
 
 int so_init(unsigned int time_quantum, unsigned int io)
 {
@@ -117,30 +141,6 @@ err_free:
 	return -1;
 }
 
-static void *start_function(void *arg)
-{
-	TPthread_arg args = *(TPthread_arg *)arg;
-
-	// arg is allocated just before calling this function:
-	// once we get here we have the copy of arg locally stored
-	free(arg);
-
-	/* TODO: some sort of signal to parent thread that we are ready to
-	 * run; parent thread waits until we get this far.
-	 */
-
-
-	/* TODO: some sort of lock because the thread will immediately reach
-	 * this point; here we wait (somehow) to te planned on CPU
-	 */
-
-
-	args.handler(args.priority);
-
-	pthread_exit(NULL);
-}
-
-/* asta e o instructiune deci consuma o cunata de timp*/
 tid_t so_fork(so_handler *func, unsigned int priority)
 {
 	if (func == NULL || priority > SO_MAX_PRIO)
