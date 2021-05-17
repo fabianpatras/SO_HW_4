@@ -5,17 +5,21 @@ LIBS = -L. -lscheduler
 
 build: libscheduler.so
 
-libscheduler.so: so_scheduler.c
+libscheduler.so: so_scheduler.c list.o queue.o
 	$(CC) $(CFLAGS) $(INC) -shared $^ -o $@
 
 test: build
 	cp libscheduler.so checker-lin/ && cd checker-lin/ && make -f Makefile.checker
 
-main: main.o
-	$(CC) $(CFLAGS) $(INC) $< $(LIBS) -o $@
+main: main.o list.o queue.o
+	$(CC) $(CFLAGS) $(INC) $^ $(LIBS) -o $@
 
 main.o: main.c build
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 
+list.o:
+
+queue.o:
+
 clean:
-	rm -rf libscheduler.so main main.o
+	rm -rf libscheduler.so *.o main

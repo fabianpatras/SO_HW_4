@@ -1,4 +1,5 @@
 #include "so_scheduler.h"
+#include "thread_util.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -7,78 +8,73 @@
 
 #define SO_VERBOSE_ERROR
 
-typedef struct pthread_arg {
-	so_handler *handler;
-	unsigned int priority;
-	int is_master;
-} TPthread_arg;
+static TScheduler *scheduler = NULL;
 
-typedef struct thread_struct {
-	/* thread id */
-	tid_t id;
+/* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~ thread_sync ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
 
-	/* the condition variable that will control the thread
-	 * it does so when we call pthread_cond_wait and pthread_cond_signal
-	 * on this varaible and the scheduler_instance
-	 * TODO: mutex??
-	 */
-	pthread_cond_t cond_var;
+static void thread_wait_to_get_scheduled(TThread_struct *thread)
+{
+	pthread_mutex_lock(&(scheduler->lock));
 
-	/* variable used to check if we can run or not
-	 */
-	unsigned int condition;
+	while (!(thread->condition)) {
+		pthread_cond_wait(&(thread->cond_var), 
+			&(scheduler->lock));
+	}
 
-	/* how much CPU time this thread had without being preempted
-	 * this should reset to 0 when barely planned for execution
-	 */
-	unsigned int quantum_spent;
-} TThread_struct;
+	pthread_mutex_unlock(&(scheduler->lock));
+}
 
-typedef struct scheduler {
-	/* maximum allowed time on CPU */
-	unsigned int max_time_quantum;
+static void signal_thread_scheduled(TThread_struct *thread)
+{
+	pthread_mutex_lock(&(scheduler->lock));
 
-	/* maximum I/O events allowed */
-	unsigned int io_events;
+	thread->condition = 0;
 
-	/* the id of the master thread == thread that called so_init */
-	tid_t master_thread_id;
+	pthread_mutex_unlock(&(scheduler->lock));
+}
 
-	/* the id of the currently running thread */
-	tid_t crt_running_thread_id;
+static void signal_parent_thread_of_forked()
+{
+	pthread_mutex_lock(&(scheduler->fork_lock));
+	scheduler->fork_flag = 1;
+	pthread_cond_signal(&(scheduler->fork_cond_var));
+	pthread_mutex_unlock(&(scheduler->fork_lock));
+}
 
-	/* current thread time on CPU */
-	unsigned int crt_thread_time_quantum;
+static void wait_for_forked_thread(TThread_struct *thread)
+{
+	pthread_mutex_lock(&(scheduler->fork_lock));
 
-	/* lock used to operate on scheduler internals */
-	pthread_mutex_t scheduler_lock;
+	while(!(scheduler->fork_flag)) {
+		pthread_cond_wait(&(scheduler->fork_cond_var),
+			&(scheduler->fork_lock));
+	}
 
-	/* TODO: READY queue */
+	add_to_queue(&(scheduler->ready_queue), thread, cmp_by_priority);
 
-	/* TODO: RUNNING identificator */
+	pthread_mutex_unlock(&(scheduler->fork_lock));
+}
 
-	/* ??? */
-
-} TScheduler;
-
-static TScheduler *scheduler_instance = NULL;
-
+/* ~~~~~~~~~~~~~~~~~~~~~~~~~~~ aux_functions ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
 
 static int is_master_thread()
 {
-	return scheduler_instance->master_thread_id == pthread_self();
+	return scheduler->master_thread_id == pthread_self();
 }
 
-static void scheduler_lock()
+static TThread_struct *new_thread_struct(tid_t tid, unsigned int priority)
 {
-	pthread_mutex_lock(&(scheduler_instance->scheduler_lock));
-}
+	TThread_struct *instance = calloc(1, sizeof(TThread_struct));
+	if (instance == NULL)
+		return NULL;
+	
+	instance->id = tid;
+	instance->priority = priority;
+	pthread_cond_init(&(instance->cond_var), NULL);
 
-static void scheduler_unlock()
-{
-	pthread_mutex_unlock(&(scheduler_instance->scheduler_lock));
+	return instance;
 }
-
+ 
 
 static void *start_function(void *arg)
 {
@@ -91,7 +87,7 @@ static void *start_function(void *arg)
 	/* TODO: some sort of signal to parent thread that we are ready to
 	 * run; parent thread waits until we get this far.
 	 */
-
+	signal_parent_thread_of_forked();
 
 	/* TODO: some sort of lock because the thread will immediately reach
 	 * this point; here we wait (somehow) to te planned on CPU
@@ -103,11 +99,13 @@ static void *start_function(void *arg)
 	pthread_exit(NULL);
 }
 
+/* ~~~~~~~~~~~~~~~~~~~~~~~~~ header_functions ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
+
 int so_init(unsigned int time_quantum, unsigned int io)
 {
-	int rc = 0;
+	// int rc = 0;
 
-	if (scheduler_instance != NULL) {
+	if (scheduler != NULL) {
 		return -1;
 	}
 
@@ -118,27 +116,30 @@ int so_init(unsigned int time_quantum, unsigned int io)
 	if (time_quantum == 0)
 		return -1;
 
-	scheduler_instance = calloc(1, sizeof(TScheduler));
-	if (scheduler_instance == NULL)
+	scheduler = calloc(1, sizeof(TScheduler));
+	if (scheduler == NULL)
 		return -1;
 
-	scheduler_instance->io_events = io;
-	scheduler_instance->max_time_quantum = time_quantum;
-	scheduler_instance->crt_thread_time_quantum = 0;
-	scheduler_instance->crt_running_thread_id = INVALID_TID;
-	rc = pthread_mutex_init(&(scheduler_instance->scheduler_lock), NULL);
+	scheduler->io_events = io;
+	scheduler->max_time_quantum = time_quantum;
+	scheduler->crt_thread_time_quantum = 0;
+	scheduler->crt_running_thread_id = INVALID_TID;
 
-	if (rc != 0)
-		goto err_free;
+	pthread_mutex_init(&(scheduler->lock), NULL);
+	pthread_mutex_init(&(scheduler->fork_lock), NULL);
 
-	scheduler_instance->master_thread_id = pthread_self();
+	pthread_cond_init(&(scheduler->fork_cond_var), NULL);
+	scheduler->fork_flag = 0;
+
+	scheduler->master_thread_id = pthread_self();
+	init_queue(&(scheduler->ready_queue));
 
 	return 0;
 
-err_free:
-	free(scheduler_instance);
-	scheduler_instance = NULL;
-	return -1;
+// err_free:
+// 	free(scheduler);
+// 	scheduler = NULL;
+// 	return -1;
 }
 
 tid_t so_fork(so_handler *func, unsigned int priority)
@@ -157,16 +158,23 @@ tid_t so_fork(so_handler *func, unsigned int priority)
 
 	pthread_t new_thread = INVALID_TID;
 	pthread_create(&new_thread, NULL, start_function, arg);
-	pthread_join(new_thread, NULL);
 
-	/* here we wait to get singaled by the just create thread that it's
+	TThread_struct *t_struct = new_thread_struct(new_thread, priority);
+	if (t_struct == NULL)
+		return INVALID_TID;
+
+	
+	wait_for_forked_thread(t_struct);
+
+
+	/* here we wait to get signaled by the just create thread that it's
 	 * ready to run before we continue;
 	 * we do this with some mutex I think;
 	 */
 
+
+
 	/* this is check scheduler part */
-
-
 
 	return new_thread;
 }
@@ -194,9 +202,9 @@ void so_exec(void)
 
 void so_end(void)
 {
-	if (scheduler_instance != NULL) {
-		free(scheduler_instance);
-		scheduler_instance = NULL;
+	if (scheduler != NULL) {
+		free(scheduler);
+		scheduler = NULL;
 	}
 
 	return;
