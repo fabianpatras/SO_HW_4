@@ -24,6 +24,7 @@
 "files.associations": {
 	"scheduler_test.h": "c",
 	"so_scheduler.h": "c",
-	"run_test.h": "c"
+	"run_test.h": "c",
+	"pthread.h": "c"
 }
 }

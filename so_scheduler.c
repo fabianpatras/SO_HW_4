@@ -26,7 +26,7 @@ typedef struct scheduler {
 	/* maximum I/O events allowed */
 	unsigned int io_events;
 
-	/* the id of the currently running thread */
+	/* the id of the master thread == th	read that colled so_init */
 	tid_t master_thread_id;
 
 	/* the id of the currently running thread */
@@ -43,18 +43,33 @@ typedef struct scheduler {
 	/* TODO: RUNNING identificator */
 
 	/* ??? */
-	
+
 } TScheduler;
 
 static TScheduler *scheduler_instance = NULL;
+
+
+static int is_master_thread()
+{
+	return scheduler_instance->master_thread_id == pthread_self();
+}
+
+static void scheduler_lock()
+{
+	pthread_mutex_lock(&(scheduler_instance->scheduler_lock));
+}
+
+static void scheduler_unlock()
+{
+	pthread_mutex_unlock(&(scheduler_instance->scheduler_lock));
+}
+
 
 int so_init(unsigned int time_quantum, unsigned int io)
 {
 	int rc = 0;
 
-	// printf("[%p]\n", scheduler_instance);
 	if (scheduler_instance != NULL) {
-		// printf("already initialised");
 		return -1;
 	}
 
@@ -68,8 +83,7 @@ int so_init(unsigned int time_quantum, unsigned int io)
 	scheduler_instance = calloc(1, sizeof(TScheduler));
 	if (scheduler_instance == NULL)
 		return -1;
-	
-	// printf("init ok [%p]\n", scheduler_instance);
+
 	scheduler_instance->io_events = io;
 	scheduler_instance->max_time_quantum = time_quantum;
 	scheduler_instance->crt_thread_time_quantum = 0;
@@ -89,20 +103,23 @@ err_free:
 	return -1;
 }
 
-int is_master_thread()
-{
-	return scheduler_instance->master_thread_id == pthread_self();
-}
-
 static void *start_function(void *arg)
 {
 	TPthread_arg args = *(TPthread_arg *)arg;
+
+	// arg is allocated just before calling this function:
+	// once we get here we have the copy of arg locally stored
 	free(arg);
 
-	/* TODO: some sort of lock because the thread will immediately reach
-	 * this point
+	/* TODO: some sort of signal to parent thread that we are ready to
+	 * run; parent thread waits until we get this far.
 	 */
-	
+
+
+	/* TODO: some sort of lock because the thread will immediately reach
+	 * this point; here we wait (somehow) to te planned on CPU
+	 */
+
 
 	args.handler(args.priority);
 
@@ -118,13 +135,24 @@ tid_t so_fork(so_handler *func, unsigned int priority)
 	TPthread_arg *arg = calloc(1, sizeof(TPthread_arg));
 	if (arg == NULL)
 		return INVALID_TID;
-	
+
+	/* this is do-work part */
 	arg->handler = func;
 	arg->priority = priority;
 	arg->is_master = is_master_thread();
 
 	pthread_t new_thread = INVALID_TID;
 	pthread_create(&new_thread, NULL, start_function, arg);
+	pthread_join(new_thread, NULL);
+
+	/* here we wait to get singaled by the just create thread that it's
+	 * ready to run before we continue;
+	 * we do this with some mutex I think;
+	 */
+
+	/* this is check scheduler part */
+
+
 
 	return new_thread;
 }
@@ -166,8 +194,7 @@ void so_end(void)
 	if (scheduler_instance != NULL) {
 		free(scheduler_instance);
 		scheduler_instance = NULL;
-		// printf("after free [%p]\n", scheduler_instance);
 	}
-	// printf("so_end ok [%p]\n", scheduler_instance);
+
 	return;
 }
