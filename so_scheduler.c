@@ -14,9 +14,23 @@ typedef struct pthread_arg {
 } TPthread_arg;
 
 typedef struct thread_struct {
+	/* thread id */
 	tid_t id;
-	/* mutex ceva? */
 
+	/* the condition variable that will control the thread
+	 * it does so when we call pthread_cond_wait and pthread_cond_signal
+	 * on this varaible and the scheduler_instance TODO: mutex??
+	 */
+	pthread_cond_t cond_var;
+
+	/* variable used to check if we can run or not
+	 */
+	unsigned int condition;
+
+	/* how much CPU time this thread had without being preempted
+	 * this should reset to 0 when barely planned for execution
+	 */
+	unsigned int quantum_spent;
 } TThread_struct;
 
 typedef struct scheduler {
@@ -157,29 +171,18 @@ tid_t so_fork(so_handler *func, unsigned int priority)
 	return new_thread;
 }
 
-/* asta e o instructiune deci consuma o cunata de timp*/
 int so_wait(unsigned int io)
 {
-	// asta e o instuctiune
 	return -1;
 }
 
-/* asta e o instructiune deci consuma o cunata de timp*/
 int so_signal(unsigned int io)
 {
 	return -1;
 }
 
-/* asta e o instructiune deci consuma o cunata de timp*/
 void so_exec(void)
 {
-	// aici se cosidera ca e executata instructiunea
-	// adica la un apel de so_exec se considera cu threadul curent a
-	// stat o cuanta de timp pe procesor
-
-	// pthread_t self_id = pthread_self();
-	// contorizez ca thread[self_id] a mai executat o coanta de timp
-
 	int n = 1 << 12;
 	int i = 0;
 	int a = 0;
