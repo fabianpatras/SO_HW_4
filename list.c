@@ -12,9 +12,11 @@ TNode *add_element_to_front(TNode **node, void *element)
 	new_node->element = element;
 	new_node->next = *node;
 
-	(*node)->next = new_node;
+	// if (*node == NULL) {
+	// 	*node = new_node;
+	// 	return new_node;
+	// }
 	*node = new_node;
-
 	return new_node;
 }
 

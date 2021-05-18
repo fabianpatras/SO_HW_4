@@ -422,6 +422,7 @@ int so_init(unsigned int time_quantum, unsigned int io)
 
 	scheduler->master_thread_id = pthread_self();
 	init_queue(&(scheduler->ready_queue));
+	scheduler->thread_id_list = NULL;
 
 	return 0;
 
@@ -452,6 +453,13 @@ tid_t so_fork(so_handler *func, unsigned int priority)
 	if (t_struct == NULL)
 		return INVALID_TID;
 
+	pthread_t *new_thread_copy = calloc (1, sizeof(pthread_t));
+	if (new_thread_copy == NULL)
+		return INVALID_TID;
+	
+	*new_thread_copy = new_thread;
+	add_element_to_front(&(scheduler->thread_id_list), new_thread_copy);
+
 	/* here we wait to get signaled by the just create thread that it's
 	 * ready to run before we continue;
 	 * we do this with some mutex I think;
@@ -459,6 +467,7 @@ tid_t so_fork(so_handler *func, unsigned int priority)
 
 	printf("am ajuns aici\n");
 	add_to_queue(&(scheduler->ready_queue), t_struct, cmp_by_priority);
+	// add_to_queue(&(scheduler->ready_queue), t_struct, cmp_by_priority_2);
 	pthread_barrier_wait(&(scheduler->fork_barrier));
 	wait_for_forked_thread();
 
@@ -507,6 +516,17 @@ void so_end(void)
 	pthread_barrier_destroy(&(scheduler->fork_barrier));
 	pthread_cond_destroy(&(scheduler->fork_cond_var));
 	pthread_cond_destroy(&(scheduler->finish_cond_var));
+
+	int counter = 10;
+	while (scheduler->thread_id_list != NULL) {
+		TNode *aux = scheduler->thread_id_list;
+		pthread_t t_id = *(pthread_t *)(aux->element);
+		printf("cunter[%d] t_id[%ld]\n", counter, t_id);
+		scheduler->thread_id_list = scheduler->thread_id_list->next;
+		free(aux->element);
+		free(aux);
+		pthread_join(t_id, NULL);
+	}
 
 	free(scheduler);
 	scheduler = NULL;
