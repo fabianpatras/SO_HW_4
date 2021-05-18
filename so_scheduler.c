@@ -208,40 +208,6 @@ static void check_scheduler()
 
 	if (scheduler->crt_thread_time_quantum == scheduler->max_time_quantum) {
 		printf("\t(check_scheduler)(max_quantum reached)\n");
-		// if (scheduler->ready_queue.size == 0) {
-		// 	// WRONG
-		// 	// WRONG
-		// 	// WRONG
-		// 	// WRONG
-		// 	// WRONG
-		// 	// WRONG
-		// 	// WRONG
-		// 	// TODO: here we insert crt running thread back
-		// 	// to ready_q
-		// 	printf("(check_scheduler)(FINISH)\n");
-		// 	free(scheduler->running_thread);
-		// 	scheduler->running_thread = NULL;
-		// 	signal_finish();
-		// 	pthread_mutex_unlock(&(scheduler->lock));
-		// 	return;
-		// }
-
-		// TODO: 1) maine dim trebuie mutat din a tine id-ul treadurlui
-		// care ruleaza in a tine un pointer la structura threadului
-		// care ruleaza
-		//
-		// 2) dupa asta treburile ar trebuis a devina mai usoare pentru
-		// ca acum putem sa punem threadurile pe sleep atunci cand sunt
-		// spawnate si sa le dam signal
-		//
-		// 3) aici cand trebuie sa facem switch la threaduri pentru ca
-		// au rulat prea mult ele trebuie adaugate in priority queue
-		// in coada la ac prioritate si threadul care e pe prima pozitie
-		// in coada de ready trebuie scos si pus in running
-
-
-		// introducem crt running thread inapoi in coada
-		// si apoi dam pop front
 
 		// add running back to ready (if not so_wait)
 		printf("\t\t(check_scheduler)(max_quantum)\n");
@@ -278,7 +244,6 @@ static void check_scheduler()
 		// all instructions but we don't know that yet
 		pthread_mutex_unlock(&(scheduler->lock));
 		printf("\t\t(check_scheduler)(max_quantum)(resume)\n");
-
 
 	} else {
 		printf("\t(check_scheduler)(peek)\n");
@@ -429,6 +394,10 @@ int so_init(unsigned int time_quantum, unsigned int io)
 	init_queue(&(scheduler->ready_queue));
 	scheduler->thread_id_list = NULL;
 
+	for (int i = 0; i < io; i++) {
+		scheduler->waiting_lists[i] = NULL;
+	}
+
 	return 0;
 
 // err_free:
@@ -485,12 +454,64 @@ tid_t so_fork(so_handler *func, unsigned int priority)
 
 int so_wait(unsigned int io)
 {
-	return -1;
+	if (io >= scheduler->io_events)
+		return -1;
+
+	// move the currently running thread's struct into the waiting list
+	TThread_struct *old_running = scheduler->running_thread;
+	add_element_to_front(&(scheduler->waiting_lists[io]), old_running);
+
+	// clear the currently running thread info
+	scheduler->running_thread = NULL;
+	scheduler->crt_thread_time_quantum = 0;
+
+	// clear info about old thread
+	old_running->condition = 0;
+
+	TThread_struct *new_running = dequeue_pr(&(scheduler->ready_queue));
+	
+	scheduler->running_thread = new_running;
+
+	// signal new thread
+	pthread_mutex_lock(&(scheduler->lock));
+	new_running->condition = 1;
+	pthread_cond_signal(&(new_running->cond_var));
+
+	// sleep old thread
+	while (old_running->condition != 1) {
+		pthread_cond_wait(&(old_running->cond_var),
+			&(scheduler->lock));
+	}
+
+	// old thread resumed execution
+	pthread_mutex_unlock(&(scheduler->lock));
+
+
+	return 0;
 }
 
 int so_signal(unsigned int io)
 {
-	return -1;
+	if (io >= scheduler->io_events)
+		return -1;
+
+	int counter = 0;
+	TNode *aux = NULL;
+
+	while(scheduler->waiting_lists[io] != NULL) {
+		counter++;
+		aux = scheduler->waiting_lists[io];
+		add_to_queue(&(scheduler->ready_queue),
+			aux->element,
+			cmp_by_priority);
+
+		scheduler->waiting_lists[io] = aux->next;
+		free(aux);
+	}
+
+	check_scheduler();
+
+	return counter;
 }
 
 void so_exec(void)

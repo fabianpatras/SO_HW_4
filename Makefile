@@ -1,4 +1,5 @@
 # LD_LIBRARY_PATH=. ./_test/run_test 6
+# LD_LIBRARY_PATH=. ./main
 # LD_LIBRARY_PATH=. valgrind --leak-check=full --show-leak-kinds=all ./_test/run_test 6
 # LD_LIBRARY_PATH=. valgrind --leak-check=full --show-leak-kinds=all ./main
 # LD_LIBRARY_PATH=. valgrind --leak-check=full --show-leak-kinds=all --show-reachable=yes --vex-iropt-register-updates=allregs-at-mem-access ./main

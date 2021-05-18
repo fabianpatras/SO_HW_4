@@ -80,6 +80,11 @@ typedef struct scheduler {
 	/* a list with all the thread id's that have to be joined at the end */
 	TNode *thread_id_list;
 
+	/* an array of lists that will hold each thread that wants to wait
+	 * for the event that is the index of the array
+	 */
+	TNode *waiting_lists[SO_MAX_NUM_EVENTS];
+
 	/* ??? */
 
 } TScheduler;
