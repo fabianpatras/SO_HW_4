@@ -52,14 +52,86 @@ static void wait_for_forked_thread(TThread_struct *thread)
 
 	add_to_queue(&(scheduler->ready_queue), thread, cmp_by_priority);
 
+	printf("threadul [%ld] cu priority [%d] a fost bagat in coada\n",
+		thread->id, thread->priority);
+	
+	scheduler->fork_flag = 0;
+
 	pthread_mutex_unlock(&(scheduler->fork_lock));
+}
+
+static TThread_struct *get_thread_struct_from_ready()
+{
+	pthread_t id = pthread_self();
+	return find_element_in_queue(&(scheduler->ready_queue),
+		&id,
+		cmp_find_by_id);
+}
+
+static TThread_struct *get_thread_struct_from_waiting()
+{
+
+	// TODO: fix me
+
+	// return find_element_in_queue(&(scheduler->ready_queue),
+	// 	pthread_self(),
+	// 	cmp_find_by_id);
+	return NULL;
+}
+
+/* newly create thread will call this before executing the handler
+ * as this should wait to get a signal from the scheduler to start executing
+ */
+static void wait_to_start_executing()
+{
+	TThread_struct *crt_thread = get_thread_struct_from_ready();
+
+	pthread_mutex_lock(&(scheduler->lock));
+	pthread_cond_wait(&(crt_thread->cond_var), &(scheduler->lock));
+	pthread_mutex_unlock(&(scheduler->lock));
+}
+
+static void check_scheduler()
+{
+	TThread_struct *crt_thread = get_thread_struct_from_ready();
+
+	if (crt_thread == NULL &&
+		pthread_equal(pthread_self(), scheduler->master_thread_id)) {
+		// here we should somehow start the scheduling 
+		// but not block here
+		TThread_struct *first_thread = get_first_element(&(scheduler->ready_queue));
+		scheduler->crt_running_thread_id = first_thread->id;
+		
+		// this instruction starts the first forked thread
+		printf("Starting the first forked thread\n");
+		pthread_cond_signal(&(first_thread->cond_var));
+		return;
+	}
+
+	pthread_mutex_lock(&(scheduler->lock));
+	scheduler->crt_thread_time_quantum++;
+	if (scheduler->crt_thread_time_quantum == scheduler->max_time_quantum) {
+		// TODO: 1) maine dim trebuie mutat din a tine id-ul treadurlui
+		// care ruleaza in a tine un pointer la structura threadului
+		// care ruleaza
+		//
+		// 2) dupa asta treburile ar trebuis a devina mai usoare pentru
+		// ca acum putem sa punem threadurile pe sleep atunci cand sunt
+		// spawnate si sa le dam signal
+		//
+		// 3) aici cand trebuie sa facem switch la threaduri pentru ca
+		// au rulat prea mult ele trebuie adaugate in priority queue
+		// in coada la ac prioritate si threadul care e pe prima pozitie
+		// in coada de ready trebuie scos si pus in running
+	}
+	
 }
 
 /* ~~~~~~~~~~~~~~~~~~~~~~~~~~~ aux_functions ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
 
 static int is_master_thread()
 {
-	return scheduler->master_thread_id == pthread_self();
+	return pthread_equal(scheduler->master_thread_id, pthread_self());
 }
 
 static TThread_struct *new_thread_struct(tid_t tid, unsigned int priority)
@@ -87,14 +159,21 @@ static void *start_function(void *arg)
 	/* TODO: some sort of signal to parent thread that we are ready to
 	 * run; parent thread waits until we get this far.
 	 */
-	signal_parent_thread_of_forked();
+	// signal_parent_thread_of_forked();
 
 	/* TODO: some sort of lock because the thread will immediately reach
 	 * this point; here we wait (somehow) to te planned on CPU
+	 * wait to be added to ready queue
 	 */
+	pthread_barrier_wait(&(scheduler->fork_barrier));
 
+	// wait to get scheduled ???
+	// this 
+	wait_to_start_executing();
 
 	args.handler(args.priority);
+
+	// thread finished executing -> delete from ready/running??
 
 	pthread_exit(NULL);
 }
@@ -127,9 +206,9 @@ int so_init(unsigned int time_quantum, unsigned int io)
 
 	pthread_mutex_init(&(scheduler->lock), NULL);
 	pthread_mutex_init(&(scheduler->fork_lock), NULL);
-
 	pthread_cond_init(&(scheduler->fork_cond_var), NULL);
 	scheduler->fork_flag = 0;
+	pthread_barrier_init(&(scheduler->fork_barrier), NULL, 2);
 
 	scheduler->master_thread_id = pthread_self();
 	init_queue(&(scheduler->ready_queue));
@@ -163,18 +242,16 @@ tid_t so_fork(so_handler *func, unsigned int priority)
 	if (t_struct == NULL)
 		return INVALID_TID;
 
-	
-	wait_for_forked_thread(t_struct);
-
-
 	/* here we wait to get signaled by the just create thread that it's
 	 * ready to run before we continue;
 	 * we do this with some mutex I think;
 	 */
-
-
+	add_to_queue(&(scheduler->ready_queue), t_struct, cmp_by_priority);
+	// wait_for_forked_thread(t_struct);
 
 	/* this is check scheduler part */
+	check_scheduler();
+	
 
 	return new_thread;
 }

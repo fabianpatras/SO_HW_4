@@ -73,6 +73,7 @@ void *remove_element_from_list(TNode **list, void* element, comp_func cmp)
 		return NULL;
 	
 	TNode *aux, *prev;
+	void *ret = NULL;
 
 	for (aux = *list, prev = NULL;
 		aux != NULL;
@@ -84,6 +85,20 @@ void *remove_element_from_list(TNode **list, void* element, comp_func cmp)
 			} else {
 				*list = (*list)->next; 
 			}
+			ret = aux->element;
+			free(aux);
+			return ret;
+		}
+	}
+
+	return NULL;
+}
+
+void *find_element(TNode *list, void *element, comp_func cmp)
+{
+	TNode *aux;
+	for (aux = list; aux != NULL; aux = aux->next) {
+		if (cmp(aux->element, element) == 0) {
 			return aux;
 		}
 	}

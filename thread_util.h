@@ -59,6 +59,9 @@ typedef struct scheduler {
 	/* cond var used fro fork_add_to_ready_queue */
 	pthread_cond_t fork_cond_var;
 
+	/* barrier used to catch the newly spawned thread */
+	pthread_barrier_t fork_barrier;
+
 	/* cond used fro fork_add_to_ready_queue */
 	unsigned int fork_flag;
 
@@ -66,6 +69,7 @@ typedef struct scheduler {
 	TQueue ready_queue;
 
 	/* TODO: RUNNING identificator */
+	TThread_struct *running_thread;
 
 	/* ??? */
 
@@ -78,6 +82,14 @@ static int cmp_by_priority(void *a, void *b)
 
 	return t1.priority < t2.priority ? -1 : 
 		t1.priority == t2.priority ? 0 : 1;
+}
+
+static int cmp_find_by_id(void *a, void *b)
+{
+	TThread_struct t1 = *(TThread_struct *)a;
+	pthread_t id = *(pthread_t *)b;
+
+	return pthread_equal(t1.id, id);
 }
 
 #endif /* THREAD_UTIL_H */

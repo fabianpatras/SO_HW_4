@@ -1,3 +1,4 @@
+# LD_LIBRARY_PATH=.
 CPP = gcc
 CFLAGS = -Wall -g -pthread
 INC = -I util/

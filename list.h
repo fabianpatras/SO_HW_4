@@ -19,4 +19,6 @@ TNode *add_element_to_sorted_list(TNode **list, void *element, comp_func cmp);
 
 void *remove_element_from_list(TNode **list, void* element, comp_func cmp);
 
+void *find_element(TNode *list, void *element, comp_func cmp);
+
 #endif /* LIST_H */

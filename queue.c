@@ -11,4 +11,20 @@ void init_queue(TQueue *queue)
 void *add_to_queue(TQueue *queue, void *element, comp_func cmp)
 {
 	add_element_to_sorted_list(&(queue->container), element, cmp);
+	queue->size++;
+
+	return element;
+}
+
+void *find_element_in_queue(TQueue *queue, void *element, comp_func cmp)
+{
+	return find_element(queue->container, element, cmp);
+}
+
+void *get_first_element(TQueue *queue)
+{
+	if (queue->size == 0)
+		return NULL;
+	
+	return queue->container->element;
 }
