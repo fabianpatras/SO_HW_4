@@ -98,7 +98,7 @@ static int cmp_by_priority_2(void *a, void *b)
 	TThread_struct t1 = *(TThread_struct *)a;
 	TThread_struct t2 = *(TThread_struct *)b;
 
-	return t1.priority > t2.priority ? -1 : 
+	return t1.priority < t2.priority ? -1 : 
 		t1.priority == t2.priority ? -1 : 1;
 }
 

@@ -164,7 +164,12 @@ static void finished_execution()
 	}
 
 	TThread_struct *next_thread = dequeue_pr(&(scheduler->ready_queue));
+
+	// set next running thread
 	scheduler->running_thread = next_thread;
+
+	// reset timer
+	scheduler->crt_thread_time_quantum = 0;
 
 	// singal next thread
 	pthread_mutex_lock(&(scheduler->lock));
