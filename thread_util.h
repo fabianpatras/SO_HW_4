@@ -20,7 +20,6 @@ typedef struct thread_struct {
 	/* the condition variable that will control the thread
 	 * it does so when we call pthread_cond_wait and pthread_cond_signal
 	 * on this varaible and the scheduler_instance
-	 * TODO: mutex??
 	 */
 	pthread_cond_t cond_var;
 
@@ -71,10 +70,10 @@ typedef struct scheduler {
 	/* cond used for checking if all threads finished executing */
 	unsigned int finish_flag;
 
-	/* TODO: READY queue */
+	/* READY queue */
 	TQueue ready_queue;
 
-	/* TODO: RUNNING identificator */
+	/* RUNNING identificator */
 	TThread_struct *running_thread;
 
 	/* a list with all the thread id's that have to be joined at the end */
@@ -85,8 +84,6 @@ typedef struct scheduler {
 	 */
 	TNode *waiting_lists[SO_MAX_NUM_EVENTS];
 
-	/* ??? */
-
 } TScheduler;
 
 static int cmp_by_priority(void *a, void *b)
@@ -94,17 +91,8 @@ static int cmp_by_priority(void *a, void *b)
 	TThread_struct t1 = *(TThread_struct *)a;
 	TThread_struct t2 = *(TThread_struct *)b;
 
-	return t1.priority < t2.priority ? -1 : 
+	return t1.priority < t2.priority ? -1 :
 		t1.priority == t2.priority ? 0 : 1;
-}
-
-static int cmp_by_priority_2(void *a, void *b)
-{
-	TThread_struct t1 = *(TThread_struct *)a;
-	TThread_struct t2 = *(TThread_struct *)b;
-
-	return t1.priority < t2.priority ? -1 : 
-		t1.priority == t2.priority ? -1 : 1;
 }
 
 /* a - TThread_struct *
@@ -114,9 +102,6 @@ static int cmp_find_by_id(void *a, void *b)
 {
 	TThread_struct t1 = *(TThread_struct *)a;
 	pthread_t id = *(pthread_t *)b;
-
-	// printf("id[%ld]id[%ld]equal[%d]\n", t1.id, id,
-	// 	pthread_equal(t1.id, id));
 
 	return pthread_equal(t1.id, id) == 0 ? -1 : 0;
 }

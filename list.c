@@ -8,14 +8,10 @@ TNode *add_element_to_front(TNode **node, void *element)
 	TNode *new_node = calloc(1, sizeof(TNode));
 	if (new_node == NULL)
 		return NULL;
-	
+
 	new_node->element = element;
 	new_node->next = *node;
 
-	// if (*node == NULL) {
-	// 	*node = new_node;
-	// 	return new_node;
-	// }
 	*node = new_node;
 	return new_node;
 }
@@ -27,9 +23,10 @@ TNode *add_element_to_front(TNode **node, void *element)
 TNode *add_element_to_sorted_list(TNode **list, void *element, comp_func cmp)
 {
 	TNode *new_node = calloc(1, sizeof(TNode));
+
 	if (new_node == NULL)
 		return NULL;
-	
+
 	new_node->element = element;
 	new_node->next = NULL;
 
@@ -38,7 +35,7 @@ TNode *add_element_to_sorted_list(TNode **list, void *element, comp_func cmp)
 		*list = new_node;
 		return new_node;
 	}
-	
+
 	TNode *aux, *prev;
 	int inserted = 0;
 
@@ -47,11 +44,10 @@ TNode *add_element_to_sorted_list(TNode **list, void *element, comp_func cmp)
 		prev = aux, aux = aux->next) {
 		if (cmp(aux->element, new_node->element) < 0) {
 			/* if not first element */
-			if (prev != NULL) {
+			if (prev != NULL)
 				prev->next = new_node;
-			} else {
+			else
 				*list = new_node;
-			}
 			new_node->next = aux;
 			inserted = 1;
 			break;
@@ -64,15 +60,15 @@ TNode *add_element_to_sorted_list(TNode **list, void *element, comp_func cmp)
 	 */
 	if (inserted == 0)
 		prev->next = new_node;
-	
+
 	return new_node;
 }
 
-void *remove_element_from_list(TNode **list, void* element, comp_func cmp)
+void *remove_element_from_list(TNode **list, void *element, comp_func cmp)
 {
 	if (*list == NULL)
 		return NULL;
-	
+
 	TNode *aux, *prev;
 	void *ret = NULL;
 
@@ -81,11 +77,10 @@ void *remove_element_from_list(TNode **list, void* element, comp_func cmp)
 		prev = aux, aux = aux->next) {
 
 		if (cmp(aux->element, element) == 0) {
-			if (prev != NULL) {
+			if (prev != NULL)
 				prev->next = aux->next;
-			} else {
-				*list = (*list)->next; 
-			}
+			else
+				*list = (*list)->next;
 			ret = aux->element;
 			free(aux);
 			return ret;
@@ -98,26 +93,24 @@ void *remove_element_from_list(TNode **list, void* element, comp_func cmp)
 void *find_element(TNode *list, void *element, comp_func cmp)
 {
 	TNode *aux;
+
 	for (aux = list; aux != NULL; aux = aux->next) {
-		if (cmp(aux->element, element) == 0) {
+		if (cmp(aux->element, element) == 0)
 			return aux->element;
-		}
 	}
 
-	// printf("nu am gasit element\n");
 	return NULL;
 }
 
 void *remove_head(TNode **list)
 {
-	// printf("(remove head)\n");
 	TNode *aux = *list;
+
 	if (aux == NULL)
 		return NULL;
-	
+
 	void *ret = aux->element;
 	*list = (*list)->next;
 	free(aux);
-	// printf("remove head\n");
 	return ret;
 }
