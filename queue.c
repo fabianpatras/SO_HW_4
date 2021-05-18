@@ -18,13 +18,24 @@ void *add_to_queue(TQueue *queue, void *element, comp_func cmp)
 
 void *find_element_in_queue(TQueue *queue, void *element, comp_func cmp)
 {
+	// printf("\tsearching in queue_size [%d]\n", queue->size);
 	return find_element(queue->container, element, cmp);
 }
 
-void *get_first_element(TQueue *queue)
+void *peek(TQueue *queue)
 {
 	if (queue->size == 0)
 		return NULL;
-	
+
 	return queue->container->element;
+}
+
+void *dequeue_pr(TQueue *queue)
+{
+	if (queue->size == 0) {
+		printf("Dequeue from empty queue\n");
+		exit(1);
+	}
+	queue->size--;
+	return remove_head(&(queue->container));
 }

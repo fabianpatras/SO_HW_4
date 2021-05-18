@@ -26,7 +26,7 @@ typedef struct thread_struct {
 
 	/* variable used to check if we can run or not
 	 */
-	unsigned int condition;
+	volatile unsigned int condition;
 
 	/* how much CPU time this thread had without being preempted
 	 * this should reset to 0 when barely planned for execution
@@ -65,11 +65,20 @@ typedef struct scheduler {
 	/* cond used fro fork_add_to_ready_queue */
 	unsigned int fork_flag;
 
+	/* cond var used for signaling all threads finished executing*/
+	pthread_cond_t finish_cond_var;
+
+	/* cond used for checking if all threads finished executing */
+	unsigned int finish_flag;
+
 	/* TODO: READY queue */
 	TQueue ready_queue;
 
 	/* TODO: RUNNING identificator */
 	TThread_struct *running_thread;
+
+	/* a list with all the thread id's that have to be joined at the end */
+	TNode *thread_id_list;
 
 	/* ??? */
 
@@ -84,12 +93,18 @@ static int cmp_by_priority(void *a, void *b)
 		t1.priority == t2.priority ? 0 : 1;
 }
 
+/* a - TThread_struct *
+ * b - pthread_t *
+ */
 static int cmp_find_by_id(void *a, void *b)
 {
 	TThread_struct t1 = *(TThread_struct *)a;
 	pthread_t id = *(pthread_t *)b;
 
-	return pthread_equal(t1.id, id);
+	// printf("id[%ld]id[%ld]equal[%d]\n", t1.id, id,
+	// 	pthread_equal(t1.id, id));
+
+	return pthread_equal(t1.id, id) == 0 ? -1 : 0;
 }
 
 #endif /* THREAD_UTIL_H */

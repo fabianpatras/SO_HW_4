@@ -1,4 +1,5 @@
 # LD_LIBRARY_PATH=.
+# LD_LIBRARY_PATH=. valgrind --leak-check=full ./_test/run_test 6
 CPP = gcc
 CFLAGS = -Wall -g -pthread
 INC = -I util/
