@@ -30,6 +30,6 @@
 
 ```make```
 
-* builds a shared librari that you then can import like this
+* builds a shared library that you then can import like this
 
 ``` gcc main.c -L. -lscheduler -o main```
